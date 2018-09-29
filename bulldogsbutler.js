@@ -1,18 +1,30 @@
+/*
+TODO
+- openshift
+- who hasent answered
+- Profilfoto und Author
+- Deadline
+
+*/
+
 // server.js
 const express        = require('express');
 const MongoClient    = require('mongodb').MongoClient;
 const bodyParser     = require('body-parser');
 const app            = express();
 const request        = require('request');
+const Promise        = require('promise');
+
+const Poll           = require('./Poll');
 
 //config
-const MongoURL          = 'mongodb://localhost:27017';
+const MongoURL          = process.env.MONGORUL || 'mongodb://localhost:27017';
 const MongoDatabase     = 'BulldogsButtler';
 const MongoCollection   = 'polls';
 const SlackAccessToken  = process.env.ButlerToken
 const dialogURL         = 'https://slack.com/api/dialog.open';
 const postMessageURL    = 'https://slack.com/api/chat.postMessage';
-const port              = 8080;
+const port              = process.env.OPENSHIFT_NODEJS_PORT || 8080;
 
 app.use(bodyParser.json());                         // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
@@ -23,7 +35,11 @@ app.listen(port, () => {
 
     //incoming Slash command /abfrage
     app.post('/create', function(req, res) {
+        res.sendStatus(200);
+
+        console.log("\n new poll:");
         console.log(req.body);
+
         //Extract json data
         const { token,
                 team_id,
@@ -44,7 +60,7 @@ app.listen(port, () => {
 
         //Build message
         //ToDo: author name and image
-        mypoll = new Poll(team_id, team_domain, channel_id, channel_name, user_id, user_name, lines[0], lines[1]);
+        let mypoll = new Poll(team_id, team_domain, channel_id, channel_name, user_id, user_name, lines[0], lines[1]);
 
         if (lines.length == 2) {
             //Standardantworten hinzufügen: ja, ja+1, nein
@@ -71,6 +87,10 @@ app.listen(port, () => {
             console.log('body:', body); 
 
             const {ok, ts} = JSON.parse(body);
+            console.log("\nTimespamp: ")
+            console.log(ts);
+            mypoll.setTimestamp(ts);
+
             if (ok == true) {
                 //Write poll to db
                 MongoClient.connect(MongoURL, function(err, db) {
@@ -88,70 +108,75 @@ app.listen(port, () => {
 
     //incoming action-endpoint aka. button pressed
     app.post('/action-endpoint', function(req, res) {
-        console.log('action-endpoint:');
+        console.log('\naction-endpoint:');
 
-        const {} = JSON.parse(req.body.payload);
-        console.log(req.body.payload);
+        payload = JSON.parse(req.body.payload);
+        console.log(payload);
+        
+        getPollFromDb(payload.team.id, payload.channel.id, payload.original_message.ts, function(err, result) {
+            //manage answers
+            result.answers.forEach(element => {
+                var index = element.user.indexOf(payload.user.id);  // get index of user 
+                if (index > -1) {                                   // if user previously answered this anser
+                    element.user.splice(index, 1);                  // remove user from answer
+                }
+                if (element.id == payload.actions[0].value) {       // if user answered this anser
+                    element.user.push(payload.user.id);             // add him to this answer
+                }
+            });
 
+            console.log('Antworten: ', result);
+
+            //Update dataset back to db
+            MongoClient.connect(MongoURL, function(err, db) {
+                if (err) throw err;
+                var dbo = db.db("BulldogsButler");
+                var myquery = { _id: result._id };
+                dbo.collection("polls").updateOne(myquery, result, function(err, res2) {
+                    if (err) throw err;
+                    console.log("1 document updated");
+                    db.close();
+
+                    //return message to slack
+                    poll = new Poll(result.team_id, null, result.channel_id, null, null, null, result.question, null);
+                    poll.setTimestamp(result.ts);
+
+                    result.answers.forEach(item => {
+                        poll.addAnswerWithUsers(item.text, item.id, item.user);
+                    });
+
+                    //post message
+                    res.set({
+                        'Authorization' : SlackAccessToken,
+                        'content-type'  : 'application/json'
+                    });
+                    res.send(JSON.stringify(poll.getMsg()));
+                });
+            });
+        });
     });
 });
 
+//Get a single Poll from the database
+//return database result
+function getPollFromDb(team_id, channel_id, timestamp, cb) {
+    console.log('team_id: ', team_id);
+    console.log('channel_id: ', channel_id);
+    console.log('timestamp: ', timestamp);
 
-class Poll {
-
-    //Create an new poll
-    constructor(team_id, team_domain, channel_id, channel_name, user_id, user_name, question, deadline){
-        this.poll = {
-            "ts": "",
-            "team_id": team_id,
-            "team_domain": team_domain,
-            "channel_id": channel_id,
-            "channel_name": channel_name,
-            "user_id": user_id,
-            "user_name": user_name,
-            "question": question,
-            "deadline": deadline,
-            "answers": []
-        };
-
-        this.msg = {
-            "response_type": "in_channel",
-            "channel": channel_id,
-            "text": "",
-            "mrkdwn_in": true,
-            "attachments": [
-                {
-                    "text": question,
-                    //"fallback": "Sorry, you are unable to answer this poll.",
-                    "callback_id": "poll",
-                    "color": "#3AA3E3",
-                    "attachment_type": "default",
-                    "actions": []
-                }
-            ]
-        };
-    }
-
-    //Add an answer
-    addAnswer(text, value) {
-        this.poll.answers.push([text, value]);
-        this.msg.attachments[0].actions.push({
-            "name": "option",
-            "text": text,
-            "type": "button",
-            "value": value
+    MongoClient.connect(MongoURL, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db("BulldogsButler");
+        var query = {
+                        team_id: team_id,
+                        channel_id: channel_id,
+                        ts: timestamp
+                    };
+        dbo.collection("polls").findOne(query, function(err, result) {
+            if (err) throw err;
+            console.log('result_id: ', result._id);
+            db.close();    
+            cb(err, result);
         });
-    }
-
-    setTimestamp(ts) {
-        this.ts = ts;
-    }
-   
-    getPoll() {
-        return this.poll;
-    }
-
-    getMsg() { 
-        return this.msg;
-    }
+    });     
 }
