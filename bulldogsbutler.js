@@ -48,7 +48,7 @@ app.listen(port, () => {
 
     // just answering liveness probe
     app.get('/', function(req, res) {
-        res.sendStatus(200);
+        res.send('Howdy my friend! :)');
     });
 
     //incoming Slash command /abfrage
