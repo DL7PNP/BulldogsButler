@@ -15,19 +15,29 @@ const Promise        = require('promise');
 
 const Poll           = require('./Poll');
 
-console.log('config...');
 //config
 const DatabaseServiceName   = process.env.DATABASE_SERVICE_NAME;
+console.log('DatabaseServiceName: ', DatabaseServiceName);
+
 const MongoDbUser           = process.env.MONGODB_USER;
+console.log('MongoDbUser: ', MongoDbUser);
+
 const MongoDbPassword       = process.env.MONGODB_PASSWORD;
+console.log('MongoDbPassword: ', MongoDbPassword);
+
 const MongoDbDatabase       = process.env.MONGODB_DATABASE;
-const MongoDatabase         = 'BulldogsButtler';
+console.log('MongoDbDatabase: ', MongoDbDatabase);
+
 const MongoCollection       = 'polls';
-const SlackAccessToken      = process.env.SLACK_ACCESS_TOKEN || 'Bearer xoxb-359316545461-aeuDuFBebnhbZ7WbX6A0XkuR';
+
+const SlackAccessToken      = process.env.SLACK_ACCESS_TOKEN;
+console.log('SlackAccessToken: ', SlackAccessToken);
+
 const dialogURL             = 'https://slack.com/api/dialog.open';
 const postMessageURL        = 'https://slack.com/api/chat.postMessage';
 const port                  = process.env.OPENSHIFT_NODEJS_PORT || 8080;
 const MongoURL              = 'mongodb://' + MongoDbUser + ':' + MongoDbPassword + '@' + DatabaseServiceName + ':27017'; // 'mongodb://localhost:27017';
+console.log('MongoURL: ', MongoURL);
 
 app.use(bodyParser.json());                         // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
