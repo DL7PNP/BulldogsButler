@@ -91,7 +91,7 @@ app.listen(port, () => {
         request({
             headers: {
                 'Authorization' : SlackAccessToken,
-                'content-type'  : 'application/json'
+                'content-type'  : 'application/json; charset=utf-8'
             },
             uri: postMessageURL,
             body: JSON.stringify(mypoll.getMsg()),
@@ -158,7 +158,7 @@ app.listen(port, () => {
                     //post message
                     res.set({
                         'Authorization' : SlackAccessToken,
-                        'content-type'  : 'application/json'
+                        'content-type'  : 'application/json; charset=utf-8'
                     });
                     res.send(JSON.stringify(poll.getMsg()));
                 });
