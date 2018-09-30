@@ -1,13 +1,11 @@
 /*
 TODO
-- openshift
-- who hasent answered
-- Profilfoto und Author
+- who hasent answered https://api.slack.com/methods/channels.info
+- Profilfoto und Autor
 - Deadline
-
+- Fehlerabfrage
 */
 
-// server.js
 const express        = require('express');
 const MongoClient    = require('mongodb').MongoClient;
 const bodyParser     = require('body-parser');
@@ -18,13 +16,17 @@ const Promise        = require('promise');
 const Poll           = require('./Poll');
 
 //config
-const MongoURL          = process.env.MONGORUL || 'mongodb://localhost:27017';
-const MongoDatabase     = 'BulldogsButtler';
-const MongoCollection   = 'polls';
-const SlackAccessToken  = process.env.ButlerToken
-const dialogURL         = 'https://slack.com/api/dialog.open';
-const postMessageURL    = 'https://slack.com/api/chat.postMessage';
-const port              = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+const DatabaseServiceName   = process.env.DATABASE_SERVICE_NAME;
+const MongoDbUser           = process.env.MONGODB_USER;
+const MongoDbPassword       = process.env.MONGODB_PASSWORD;
+const MongoDbDatabase       = process.env.MONGODB_DATABASE;
+const MongoDatabase         = 'BulldogsButtler';
+const MongoCollection       = 'polls';
+const SlackAccessToken      = process.env.SLACK_ACCESS_TOKEN || 'Bearer xoxb-359316545461-aeuDuFBebnhbZ7WbX6A0XkuR';
+const dialogURL             = 'https://slack.com/api/dialog.open';
+const postMessageURL        = 'https://slack.com/api/chat.postMessage';
+const port                  = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+const MongoURL              = 'mongodb://' + MongoDbUser + ':' + MongoDbPassword + '@' + DatabaseServiceName + ':27017'; // 'mongodb://localhost:27017';
 
 app.use(bodyParser.json());                         // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
@@ -36,9 +38,6 @@ app.listen(port, () => {
     //incoming Slash command /abfrage
     app.post('/create', function(req, res) {
         res.sendStatus(200);
-
-        console.log("\n new poll:");
-        console.log(req.body);
 
         //Extract json data
         const { token,
@@ -87,8 +86,6 @@ app.listen(port, () => {
             console.log('body:', body); 
 
             const {ok, ts} = JSON.parse(body);
-            console.log("\nTimespamp: ")
-            console.log(ts);
             mypoll.setTimestamp(ts);
 
             if (ok == true) {
@@ -111,21 +108,18 @@ app.listen(port, () => {
         console.log('\naction-endpoint:');
 
         payload = JSON.parse(req.body.payload);
-        console.log(payload);
         
         getPollFromDb(payload.team.id, payload.channel.id, payload.original_message.ts, function(err, result) {
             //manage answers
             result.answers.forEach(element => {
                 var index = element.user.indexOf(payload.user.id);  // get index of user 
-                if (index > -1) {                                   // if user previously answered this anser
+                if (index > -1) {                                   // if user previously answered this answer
                     element.user.splice(index, 1);                  // remove user from answer
                 }
                 if (element.id == payload.actions[0].value) {       // if user answered this anser
                     element.user.push(payload.user.id);             // add him to this answer
                 }
             });
-
-            console.log('Antworten: ', result);
 
             //Update dataset back to db
             MongoClient.connect(MongoURL, function(err, db) {
@@ -160,9 +154,6 @@ app.listen(port, () => {
 //Get a single Poll from the database
 //return database result
 function getPollFromDb(team_id, channel_id, timestamp, cb) {
-    console.log('team_id: ', team_id);
-    console.log('channel_id: ', channel_id);
-    console.log('timestamp: ', timestamp);
 
     MongoClient.connect(MongoURL, function(err, db) {
         if (err) throw err;
@@ -174,7 +165,7 @@ function getPollFromDb(team_id, channel_id, timestamp, cb) {
                     };
         dbo.collection("polls").findOne(query, function(err, result) {
             if (err) throw err;
-            console.log('result_id: ', result._id);
+
             db.close();    
             cb(err, result);
         });

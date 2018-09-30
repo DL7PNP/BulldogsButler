@@ -22,7 +22,7 @@ class Poll {
             "mrkdwn_in": true,
             "attachments": [
                 {
-                    "text": question,
+                    "text": '*' + question + '*',
                     //"fallback": "Sorry, you are unable to answer this poll.",
                     "callback_id": "poll",
                     "color": "#3AA3E3",
