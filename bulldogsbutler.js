@@ -15,7 +15,7 @@ const Promise        = require('promise');
 
 const Poll           = require('./Poll');
 
-console.log("config...");
+console.log('config...');
 //config
 const DatabaseServiceName   = process.env.DATABASE_SERVICE_NAME;
 const MongoDbUser           = process.env.MONGODB_USER;
