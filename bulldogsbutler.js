@@ -36,7 +36,7 @@ console.log('SlackAccessToken: ', SlackAccessToken);
 const dialogURL             = 'https://slack.com/api/dialog.open';
 const postMessageURL        = 'https://slack.com/api/chat.postMessage';
 const port                  = process.env.OPENSHIFT_NODEJS_PORT || 8080;
-const MongoURL              = /*'mongodb://' + MongoDbUser + ':' + MongoDbPassword + '@' + DatabaseServiceName + ':27017'; //*/ 'mongodb://localhost:27017';
+const MongoURL              = 'mongodb://' + MongoDbUser + ':' + MongoDbPassword + '@' + DatabaseServiceName + ':27017'; // 'mongodb://localhost:27017';
 console.log('MongoURL: ', MongoURL);
 
 app.use(bodyParser.json());                         // support json encoded bodies
